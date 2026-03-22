@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TextScan AI – Rozpoznávanie textu</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream: #FAF8F4;
+    --cream2: #F2EFE8;
+    --cream3: #E8E3D8;
+    --ink: #1C1A16;
+    --ink2: #4A4640;
+    --ink3: #8A857C;
+    --amber: #D4870A;
+    --amber-light: #FDF3E0;
+    --amber-dark: #A3620A;
+    --success: #2D7A4F;
+    --success-light: #E8F5EE;
+    --danger: #C0392B;
+    --danger-light: #FDEEEC;
+    --border: #DDD9D0;
+    --radius: 10px;
+    --radius-lg: 16px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--ink);
+    color: var(--cream);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 58px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    letter-spacing: 0.01em;
+  }
+
+  .logo-icon {
+    width: 28px;
+    height: 28px;
+    background: var(--amber);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  .badge {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    background: rgba(212,135,10,0.2);
+    color: #F4A824;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.04em;
+  }
+
+  /* MAIN LAYOUT */
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2.5rem 2rem;
+  }
+
+  .page-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 30px;
+    font-weight: 400;
+    color: var(--ink);
+    margin-bottom: 0.25rem;
+    letter-spacing: -0.02em;
+  }
+
+  .page-sub {
+    font-size: 14px;
+    color: var(--ink3);
+    margin-bottom: 2rem;
+  }
+
+  /* UPLOAD ZONE */
+  .upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius-lg);
+    background: white;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--amber);
+    background: var(--amber-light);
+  }
+
+  .upload-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 1rem;
+    background: var(--cream2);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .upload-icon svg { width: 24px; height: 24px; color: var(--ink2); }
+
+  .upload-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 0.3rem;
+  }
+
+  .upload-hint {
+    font-size: 13px;
+    color: var(--ink3);
+    margin-bottom: 1.2rem;
+  }
+
+  .upload-formats {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .format-tag {
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--cream2);
+    color: var(--ink2);
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    letter-spacing: 0.03em;
+  }
+
+  #file-input { display: none; }
+
+  /* CARDS */
+  .card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 1rem;
+  }
+
+  /* PREVIEW */
+  #preview-card { display: none; }
+
+  .preview-inner {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+  }
+
+  .preview-thumb {
+    width: 120px;
+    min-width: 120px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    background: var(--cream2);
+  }
+
+  .preview-thumb img, .preview-thumb canvas {
+    width: 100%;
+    display: block;
+  }
+
+  .preview-info { flex: 1; }
+
+  .preview-filename {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 4px;
+    word-break: break-all;
+  }
+
+  .preview-meta {
+    font-size: 13px;
+    color: var(--ink3);
+    margin-bottom: 1rem;
+  }
+
+  .btn-remove {
+    font-size: 12px;
+    color: var(--danger);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font-family: inherit;
+    text-decoration: underline;
+  }
+
+  /* ACTIONS */
+  #actions-card { display: none; }
+
+  .actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 1.25rem;
+  }
+
+  .action-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    background: white;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink2);
+    transition: all 0.15s;
+    text-align: left;
+  }
+
+  .action-btn:hover {
+    border-color: var(--amber);
+    color: var(--amber-dark);
+    background: var(--amber-light);
+  }
+
+  .action-btn.active {
+    border-color: var(--amber);
+    background: var(--amber-light);
+    color: var(--amber-dark);
+  }
+
+  .action-btn .action-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    background: var(--cream2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+
+  .action-btn.active .action-icon {
+    background: rgba(212,135,10,0.15);
+  }
+
+  /* LANGUAGE SELECT */
+  .lang-row {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1.25rem;
+    font-size: 13px;
+    color: var(--ink2);
+  }
+
+  .lang-row.visible { display: flex; }
+
+  .lang-row select {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  /* PROCESS BUTTON */
+  .btn-process {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 0.85rem 1.5rem;
+    background: var(--ink);
+    color: var(--cream);
+    border: none;
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-process:hover { background: #333; }
+  .btn-process:disabled { background: var(--ink3); cursor: not-allowed; }
+
+  /* RESULT */
+  #result-card { display: none; }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+
+  .result-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn-secondary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: white;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-secondary:hover {
+    background: var(--cream2);
+    border-color: var(--ink3);
+  }
+
+  .btn-secondary.amber {
+    border-color: var(--amber);
+    color: var(--amber-dark);
+  }
+
+  .btn-secondary.amber:hover {
+    background: var(--amber-light);
+  }
+
+  .result-text {
+    background: var(--cream);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--ink);
+    white-space: pre-wrap;
+    word-break: break-word;
+    min-height: 120px;
+    max-height: 480px;
+    overflow-y: auto;
+  }
+
+  /* LOADING */
+  .loading-wrap {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 2rem;
+    color: var(--ink2);
+    font-size: 14px;
+  }
+
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--amber);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* STATUS MESSAGES */
+  .status-msg {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 1rem;
+  }
+
+  .status-msg.error {
+    background: var(--danger-light);
+    color: var(--danger);
+    border: 1px solid rgba(192,57,43,0.2);
+    display: flex;
+  }
+
+  .status-msg.success {
+    background: var(--success-light);
+    color: var(--success);
+    border: 1px solid rgba(45,122,79,0.2);
+    display: flex;
+  }
+
+  /* EXTRACTED DATA TABLE */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 0.5rem;
+  }
+
+  .data-table th {
+    text-align: left;
+    padding: 8px 12px;
+    background: var(--cream2);
+    color: var(--ink2);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .data-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--cream3);
+    color: var(--ink);
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    main { padding: 1.5rem 1rem; }
+    .preview-inner { flex-direction: column; }
+    .preview-thumb { width: 100%; }
+    .actions-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="2" y="2" width="12" height="9" rx="1.5" stroke="#FAF8F4" stroke-width="1.5"/>
+        <path d="M5 14h6" stroke="#FAF8F4" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M5 6h6M5 9h4" stroke="#FAF8F4" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    TextScan AI
+  </div>
+  <span class="badge">Powered by Claude</span>
+</header>
+
+<main>
+  <h1 class="page-title">Rozpoznávanie textu</h1>
+  <p class="page-sub">Nahraj obrázok alebo PDF – AI rozpozná, preloží, zhrnie alebo extrahuje údaje</p>
+
+  <!-- UPLOAD -->
+  <div class="upload-zone" id="upload-zone">
+    <input type="file" id="file-input" accept="image/*,.pdf">
+    <div class="upload-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17,8 12,3 7,8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+    </div>
+    <div class="upload-title">Pretiahni súbor sem alebo klikni pre výber</div>
+    <div class="upload-hint">Podporované formáty</div>
+    <div class="upload-formats">
+      <span class="format-tag">JPG / PNG</span>
+      <span class="format-tag">WEBP</span>
+      <span class="format-tag">PDF</span>
+      <span class="format-tag">HEIC / GIF</span>
+    </div>
+  </div>
+
+  <!-- PREVIEW -->
+  <div class="card" id="preview-card">
+    <div class="card-title">Nahraný súbor</div>
+    <div class="preview-inner">
+      <div class="preview-thumb" id="preview-thumb"></div>
+      <div class="preview-info">
+        <div class="preview-filename" id="preview-filename">–</div>
+        <div class="preview-meta" id="preview-meta">–</div>
+        <button class="btn-remove" id="btn-remove">× Odstrániť súbor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="card" id="actions-card">
+    <div class="card-title">Čo chceš urobiť s textom?</div>
+    <div class="actions-grid">
+      <button class="action-btn active" data-action="ocr">
+        <span class="action-icon">🔍</span>
+        <span>Rozpoznať text</span>
+      </button>
+      <button class="action-btn" data-action="translate">
+        <span class="action-icon">🌍</span>
+        <span>Preložiť text</span>
+      </button>
+      <button class="action-btn" data-action="summarize">
+        <span class="action-icon">📋</span>
+        <span>Zhrnúť obsah</span>
+      </button>
+      <button class="action-btn" data-action="extract">
+        <span class="action-icon">📊</span>
+        <span>Extrahovať údaje</span>
+      </button>
+    </div>
+
+    <div class="lang-row" id="lang-row">
+      <span>Preložiť do:</span>
+      <select id="lang-select">
+        <option value="slovenčina">Slovenčina</option>
+        <option value="čeština">Čeština</option>
+        <option value="angličtina">Angličtina</option>
+        <option value="nemčina">Nemčina</option>
+        <option value="francúzština">Francúzština</option>
+        <option value="španielčina">Španielčina</option>
+        <option value="poľština">Poľština</option>
+        <option value="maďarčina">Maďarčina</option>
+        <option value="ruština">Ruština</option>
+      </select>
+    </div>
+
+    <div class="status-msg error" id="error-msg">
+      <span>⚠</span>
+      <span id="error-text">Chyba</span>
+    </div>
+
+    <div class="loading-wrap" id="loading-wrap">
+      <div class="spinner"></div>
+      <span id="loading-text">AI spracováva dokument…</span>
+    </div>
+
+    <button class="btn-process" id="btn-process">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="5,3 19,12 5,21 5,3"/>
+      </svg>
+      Spustiť AI analýzu
+    </button>
+  </div>
+
+  <!-- RESULT -->
+  <div class="card" id="result-card">
+    <div class="result-header">
+      <div class="card-title" style="margin-bottom:0" id="result-label">Výsledok</div>
+      <div class="result-actions">
+        <button class="btn-secondary" id="btn-copy">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Kopírovať
+        </button>
+        <button class="btn-secondary amber" id="btn-word">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+          Uložiť do Wordu
+        </button>
+      </div>
+    </div>
+    <div class="status-msg success" id="success-msg">
+      <span>✓</span>
+      <span id="success-text">Skopírované!</span>
+    </div>
+    <div class="result-text" id="result-text"></div>
+  </div>
+</main>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let currentFile = null;
+let currentImageBase64 = null;
+let currentMimeType = null;
+let currentAction = 'ocr';
+let currentResultText = '';
+
+const uploadZone = document.getElementById('upload-zone');
+const fileInput = document.getElementById('file-input');
+const previewCard = document.getElementById('preview-card');
+const actionsCard = document.getElementById('actions-card');
+const resultCard = document.getElementById('result-card');
+const previewThumb = document.getElementById('preview-thumb');
+const previewFilename = document.getElementById('preview-filename');
+const previewMeta = document.getElementById('preview-meta');
+const btnRemove = document.getElementById('btn-remove');
+const loadingWrap = document.getElementById('loading-wrap');
+const loadingText = document.getElementById('loading-text');
+const errorMsg = document.getElementById('error-msg');
+const errorText = document.getElementById('error-text');
+const successMsg = document.getElementById('success-msg');
+const successText = document.getElementById('success-text');
+const btnProcess = document.getElementById('btn-process');
+const resultText = document.getElementById('result-text');
+const resultLabel = document.getElementById('result-label');
+const langRow = document.getElementById('lang-row');
+const langSelect = document.getElementById('lang-select');
+const btnCopy = document.getElementById('btn-copy');
+const btnWord = document.getElementById('btn-word');
+
+// Upload zone events
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+btnRemove.addEventListener('click', resetAll);
+
+// Action buttons
+document.querySelectorAll('.action-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.action-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentAction = btn.dataset.action;
+    langRow.classList.toggle('visible', currentAction === 'translate');
+    hideMessages();
+  });
+});
+
+btnProcess.addEventListener('click', processFile);
+btnCopy.addEventListener('click', copyResult);
+btnWord.addEventListener('click', exportToWord);
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(1) + ' MB';
+}
+
+function hideMessages() {
+  errorMsg.style.display = 'none';
+  successMsg.style.display = 'none';
+}
+
+async function handleFile(file) {
+  const allowed = ['image/jpeg','image/png','image/webp','image/gif','image/heic','application/pdf'];
+  if (!allowed.some(t => file.type.startsWith('image/') || file.type === 'application/pdf')) {
+    showError('Nepodporovaný formát súboru.');
+    return;
+  }
+
+  currentFile = file;
+  hideMessages();
+  resultCard.style.display = 'none';
+
+  previewFilename.textContent = file.name;
+  previewMeta.textContent = formatBytes(file.size) + ' · ' + (file.type === 'application/pdf' ? 'PDF dokument' : 'Obrázok');
+
+  if (file.type === 'application/pdf') {
+    await handlePDF(file);
+  } else {
+    await handleImage(file);
+  }
+
+  previewCard.style.display = 'block';
+  actionsCard.style.display = 'block';
+}
+
+async function handleImage(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const dataUrl = e.target.result;
+      const base64 = dataUrl.split(',')[1];
+      currentImageBase64 = base64;
+      currentMimeType = file.type || 'image/jpeg';
+
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.style.cssText = 'width:100%;display:block;';
+      previewThumb.innerHTML = '';
+      previewThumb.appendChild(img);
+      resolve();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handlePDF(file) {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 1.5 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    previewThumb.innerHTML = '';
+    const thumbCanvas = document.createElement('canvas');
+    const scale = 200 / canvas.width;
+    thumbCanvas.width = 200;
+    thumbCanvas.height = Math.round(canvas.height * scale);
+    const thumbCtx = thumbCanvas.getContext('2d');
+    thumbCtx.drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+    previewThumb.appendChild(thumbCanvas);
+    thumbCanvas.style.cssText = 'width:100%;display:block;';
+
+    // Render ALL pages for full analysis
+    const allCanvases = [canvas];
+    for (let i = 2; i <= Math.min(pdf.numPages, 5); i++) {
+      const p = await pdf.getPage(i);
+      const vp = p.getViewport({ scale: 1.5 });
+      const c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height;
+      await p.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      allCanvases.push(c);
+    }
+
+    // Merge all pages into one tall canvas
+    const totalHeight = allCanvases.reduce((sum, c) => sum + c.height, 0);
+    const merged = document.createElement('canvas');
+    merged.width = allCanvases[0].width;
+    merged.height = totalHeight;
+    const mCtx = merged.getContext('2d');
+    let yOffset = 0;
+    for (const c of allCanvases) {
+      mCtx.drawImage(c, 0, yOffset);
+      yOffset += c.height;
+    }
+
+    currentImageBase64 = merged.toDataURL('image/jpeg', 0.92).split(',')[1];
+    currentMimeType = 'image/jpeg';
+    if (pdf.numPages > 1) previewMeta.textContent += ` (${pdf.numPages} strán)`;
+  } catch (e) {
+    showError('Chyba pri čítaní PDF: ' + e.message);
+  }
+}
+
+function getPrompt() {
+  const action = currentAction;
+  if (action === 'ocr') {
+    return `Si expert na rozpoznávanie textu (OCR). Prepíš VŠETOK text z tohto obrázku/dokumentu čo najpresnejšie. Zachovaj pôvodné riadkovanie, odsadenie a štruktúru. Ak vidíš tabuľky, zachovaj ich formát. Nekomentuj, len prepíš text.`;
+  }
+  if (action === 'translate') {
+    const lang = langSelect.value;
+    return `Rozpoznaj všetok text z tohto obrázku/dokumentu a preložho do jazyka: ${lang}. Zachovaj štruktúru a formátovanie originálu. Najprv uveď originálny rozpoznaný text, potom preklad.`;
+  }
+  if (action === 'summarize') {
+    return `Rozpoznaj text z tohto obrázku/dokumentu a vytvor prehľadné zhrnutie v slovenčine. Uveď: typ dokumentu, hlavný obsah, kľúčové informácie a body. Odpovedaj v slovenčine.`;
+  }
+  if (action === 'extract') {
+    return `Rozpoznaj text z tohto obrázku/dokumentu a extrahuj štruktúrované údaje. Identifikuj: typ dokumentu, dátum, číslo dokumentu, mená/firmy, sumy/ceny, položky, adresy a akékoľvek iné kľúčové údaje. Prezentuj vo formáte:\n\nTYP DOKUMENTU: ...\nDÁTUM: ...\nČÍSLO: ...\nOD (dodávateľ): ...\nPRE (odberateľ): ...\nPOLOŽKY:\n- ...\nCELKOVÁ SUMA: ...\nINÉ: ...\n\nAk niektorý údaj nie je k dispozícii, napíš "–". Odpovedaj v slovenčine.`;
+  }
+}
+
+function getLoadingText() {
+  const texts = {
+    ocr: 'Rozpoznávam text z dokumentu…',
+    translate: 'Prekladám text…',
+    summarize: 'Tvorím zhrnutie…',
+    extract: 'Extrahujem štruktúrované údaje…'
+  };
+  return texts[currentAction] || 'AI spracováva dokument…';
+}
+
+function getResultLabel() {
+  const labels = {
+    ocr: 'Rozpoznaný text',
+    translate: 'Preklad',
+    summarize: 'Zhrnutie',
+    extract: 'Extrahované údaje'
+  };
+  return labels[currentAction] || 'Výsledok';
+}
+
+async function processFile() {
+  if (!currentImageBase64) { showError('Najprv nahraj súbor.'); return; }
+  hideMessages();
+  loadingWrap.style.display = 'flex';
+  loadingText.textContent = getLoadingText();
+  btnProcess.disabled = true;
+  resultCard.style.display = 'none';
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2048,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: currentMimeType, data: currentImageBase64 } },
+            { type: 'text', text: getPrompt() }
+          ]
+        }]
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error?.message || 'API chyba ' + resp.status);
+    }
+
+    const data = await resp.json();
+    const text = data.content?.map(b => b.text || '').join('') || '';
+    currentResultText = text;
+
+    resultLabel.textContent = getResultLabel();
+    resultText.textContent = text;
+    resultCard.style.display = 'block';
+    resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  } catch (e) {
+    showError('Chyba: ' + e.message);
+  } finally {
+    loadingWrap.style.display = 'none';
+    btnProcess.disabled = false;
+  }
+}
+
+function showError(msg) {
+  errorText.textContent = msg;
+  errorMsg.style.display = 'flex';
+}
+
+function showSuccess(msg) {
+  successText.textContent = msg;
+  successMsg.style.display = 'flex';
+  setTimeout(() => { successMsg.style.display = 'none'; }, 2500);
+}
+
+function copyResult() {
+  if (!currentResultText) return;
+  navigator.clipboard.writeText(currentResultText).then(() => showSuccess('Text bol skopírovaný do schránky!')).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = currentResultText;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showSuccess('Text bol skopírovaný!');
+  });
+}
+
+function exportToWord() {
+  if (!currentResultText) return;
+  const filename = (currentFile?.name.replace(/\.[^.]+$/, '') || 'dokument') + '_text.doc';
+  const html = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office'
+          xmlns:w='urn:schemas-microsoft-com:office:word'
+          xmlns='http://www.w3.org/TR/REC-html40'>
+    <head>
+      <meta charset='utf-8'>
+      <meta name=ProgId content=Word.Document>
+      <title>${resultLabel.textContent}</title>
+      <style>
+        body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6; margin: 2cm; }
+        h1 { font-size: 14pt; font-weight: bold; margin-bottom: 8pt; color: #1C1A16; }
+        p { margin: 0 0 6pt; }
+        .meta { color: #8A857C; font-size: 9pt; margin-bottom: 16pt; }
+        pre { font-family: Calibri, Arial; white-space: pre-wrap; }
+      </style>
+    </head>
+    <body>
+      <h1>${resultLabel.textContent}</h1>
+      <p class="meta">Súbor: ${currentFile?.name || '–'} · Dátum: ${new Date().toLocaleDateString('sk-SK')}</p>
+      <pre>${currentResultText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+    </body></html>`;
+
+  const blob = new Blob(['\ufeff' + html], { type: 'application/msword;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showSuccess('Word dokument bol stiahnutý!');
+}
+
+function resetAll() {
+  currentFile = null;
+  currentImageBase64 = null;
+  currentMimeType = null;
+  currentResultText = '';
+  previewCard.style.display = 'none';
+  actionsCard.style.display = 'none';
+  resultCard.style.display = 'none';
+  previewThumb.innerHTML = '';
+  fileInput.value = '';
+  hideMessages();
+}
+</script>
+</body>
+</html>

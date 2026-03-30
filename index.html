@@ -37,7 +37,6 @@
     line-height: 1.6;
   }
 
-  /* HEADER */
   header {
     background: var(--ink);
     color: var(--cream);
@@ -83,7 +82,6 @@
     letter-spacing: 0.04em;
   }
 
-  /* MAIN LAYOUT */
   main {
     max-width: 960px;
     margin: 0 auto;
@@ -105,7 +103,6 @@
     margin-bottom: 2rem;
   }
 
-  /* UPLOAD ZONE */
   .upload-zone {
     border: 1.5px dashed var(--border);
     border-radius: var(--radius-lg);
@@ -169,7 +166,6 @@
 
   #file-input { display: none; }
 
-  /* CARDS */
   .card {
     background: white;
     border: 1px solid var(--border);
@@ -187,7 +183,6 @@
     margin-bottom: 1rem;
   }
 
-  /* PREVIEW */
   #preview-card { display: none; }
 
   .preview-inner {
@@ -237,7 +232,6 @@
     text-decoration: underline;
   }
 
-  /* ACTIONS */
   #actions-card { display: none; }
 
   .actions-grid {
@@ -292,7 +286,6 @@
     background: rgba(212,135,10,0.15);
   }
 
-  /* LANGUAGE SELECT */
   .lang-row {
     display: none;
     align-items: center;
@@ -315,7 +308,6 @@
     cursor: pointer;
   }
 
-  /* PROCESS BUTTON */
   .btn-process {
     display: flex;
     align-items: center;
@@ -337,7 +329,6 @@
   .btn-process:hover { background: #333; }
   .btn-process:disabled { background: var(--ink3); cursor: not-allowed; }
 
-  /* RESULT */
   #result-card { display: none; }
 
   .result-header {
@@ -398,7 +389,6 @@
     overflow-y: auto;
   }
 
-  /* LOADING */
   .loading-wrap {
     display: none;
     align-items: center;
@@ -420,7 +410,6 @@
 
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* STATUS MESSAGES */
   .status-msg {
     display: none;
     align-items: center;
@@ -445,30 +434,6 @@
     display: flex;
   }
 
-  /* EXTRACTED DATA TABLE */
-  .data-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-    margin-top: 0.5rem;
-  }
-
-  .data-table th {
-    text-align: left;
-    padding: 8px 12px;
-    background: var(--cream2);
-    color: var(--ink2);
-    font-weight: 600;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .data-table td {
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--cream3);
-    color: var(--ink);
-  }
-
-  /* RESPONSIVE */
   @media (max-width: 600px) {
     main { padding: 1.5rem 1rem; }
     .preview-inner { flex-direction: column; }
@@ -497,7 +462,6 @@
   <h1 class="page-title">Rozpoznávanie textu</h1>
   <p class="page-sub">Nahraj obrázok alebo PDF – AI rozpozná, preloží, zhrnie alebo extrahuje údaje</p>
 
-  <!-- UPLOAD -->
   <div class="upload-zone" id="upload-zone">
     <input type="file" id="file-input" accept="image/*,.pdf">
     <div class="upload-icon">
@@ -517,7 +481,6 @@
     </div>
   </div>
 
-  <!-- PREVIEW -->
   <div class="card" id="preview-card">
     <div class="card-title">Nahraný súbor</div>
     <div class="preview-inner">
@@ -530,7 +493,6 @@
     </div>
   </div>
 
-  <!-- ACTIONS -->
   <div class="card" id="actions-card">
     <div class="card-title">Čo chceš urobiť s textom?</div>
     <div class="actions-grid">
@@ -585,7 +547,6 @@
     </button>
   </div>
 
-  <!-- RESULT -->
   <div class="card" id="result-card">
     <div class="result-header">
       <div class="card-title" style="margin-bottom:0" id="result-label">Výsledok</div>
@@ -610,6 +571,9 @@
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ✅ CLOUDFLARE WORKER PROXY URL
+const API_URL = 'https://royal-credit-8701.office-9a6.workers.dev/';
 
 let currentFile = null;
 let currentImageBase64 = null;
@@ -640,7 +604,6 @@ const langSelect = document.getElementById('lang-select');
 const btnCopy = document.getElementById('btn-copy');
 const btnWord = document.getElementById('btn-word');
 
-// Upload zone events
 uploadZone.addEventListener('click', () => fileInput.click());
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
@@ -652,7 +615,6 @@ uploadZone.addEventListener('drop', e => {
 fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
 btnRemove.addEventListener('click', resetAll);
 
-// Action buttons
 document.querySelectorAll('.action-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.action-btn').forEach(b => b.classList.remove('active'));
@@ -679,12 +641,6 @@ function hideMessages() {
 }
 
 async function handleFile(file) {
-  const allowed = ['image/jpeg','image/png','image/webp','image/gif','image/heic','application/pdf'];
-  if (!allowed.some(t => file.type.startsWith('image/') || file.type === 'application/pdf')) {
-    showError('Nepodporovaný formát súboru.');
-    return;
-  }
-
   currentFile = file;
   hideMessages();
   resultCard.style.display = 'none';
@@ -707,10 +663,8 @@ async function handleImage(file) {
     const reader = new FileReader();
     reader.onload = e => {
       const dataUrl = e.target.result;
-      const base64 = dataUrl.split(',')[1];
-      currentImageBase64 = base64;
+      currentImageBase64 = dataUrl.split(',')[1];
       currentMimeType = file.type || 'image/jpeg';
-
       const img = document.createElement('img');
       img.src = dataUrl;
       img.style.cssText = 'width:100%;display:block;';
@@ -731,20 +685,17 @@ async function handlePDF(file) {
     const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-    const ctx = canvas.getContext('2d');
-    await page.render({ canvasContext: ctx, viewport }).promise;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
 
-    previewThumb.innerHTML = '';
     const thumbCanvas = document.createElement('canvas');
     const scale = 200 / canvas.width;
     thumbCanvas.width = 200;
     thumbCanvas.height = Math.round(canvas.height * scale);
-    const thumbCtx = thumbCanvas.getContext('2d');
-    thumbCtx.drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+    thumbCanvas.getContext('2d').drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+    previewThumb.innerHTML = '';
     previewThumb.appendChild(thumbCanvas);
     thumbCanvas.style.cssText = 'width:100%;display:block;';
 
-    // Render ALL pages for full analysis
     const allCanvases = [canvas];
     for (let i = 2; i <= Math.min(pdf.numPages, 5); i++) {
       const p = await pdf.getPage(i);
@@ -755,17 +706,13 @@ async function handlePDF(file) {
       allCanvases.push(c);
     }
 
-    // Merge all pages into one tall canvas
     const totalHeight = allCanvases.reduce((sum, c) => sum + c.height, 0);
     const merged = document.createElement('canvas');
     merged.width = allCanvases[0].width;
     merged.height = totalHeight;
     const mCtx = merged.getContext('2d');
     let yOffset = 0;
-    for (const c of allCanvases) {
-      mCtx.drawImage(c, 0, yOffset);
-      yOffset += c.height;
-    }
+    for (const c of allCanvases) { mCtx.drawImage(c, 0, yOffset); yOffset += c.height; }
 
     currentImageBase64 = merged.toDataURL('image/jpeg', 0.92).split(',')[1];
     currentMimeType = 'image/jpeg';
@@ -776,52 +723,31 @@ async function handlePDF(file) {
 }
 
 function getPrompt() {
-  const action = currentAction;
-  if (action === 'ocr') {
+  if (currentAction === 'ocr') {
     return `Si expert na rozpoznávanie textu (OCR). Prepíš VŠETOK text z tohto obrázku/dokumentu čo najpresnejšie. Zachovaj pôvodné riadkovanie, odsadenie a štruktúru. Ak vidíš tabuľky, zachovaj ich formát. Nekomentuj, len prepíš text.`;
   }
-  if (action === 'translate') {
+  if (currentAction === 'translate') {
     const lang = langSelect.value;
     return `Rozpoznaj všetok text z tohto obrázku/dokumentu a preložho do jazyka: ${lang}. Zachovaj štruktúru a formátovanie originálu. Najprv uveď originálny rozpoznaný text, potom preklad.`;
   }
-  if (action === 'summarize') {
+  if (currentAction === 'summarize') {
     return `Rozpoznaj text z tohto obrázku/dokumentu a vytvor prehľadné zhrnutie v slovenčine. Uveď: typ dokumentu, hlavný obsah, kľúčové informácie a body. Odpovedaj v slovenčine.`;
   }
-  if (action === 'extract') {
+  if (currentAction === 'extract') {
     return `Rozpoznaj text z tohto obrázku/dokumentu a extrahuj štruktúrované údaje. Identifikuj: typ dokumentu, dátum, číslo dokumentu, mená/firmy, sumy/ceny, položky, adresy a akékoľvek iné kľúčové údaje. Prezentuj vo formáte:\n\nTYP DOKUMENTU: ...\nDÁTUM: ...\nČÍSLO: ...\nOD (dodávateľ): ...\nPRE (odberateľ): ...\nPOLOŽKY:\n- ...\nCELKOVÁ SUMA: ...\nINÉ: ...\n\nAk niektorý údaj nie je k dispozícii, napíš "–". Odpovedaj v slovenčine.`;
   }
-}
-
-function getLoadingText() {
-  const texts = {
-    ocr: 'Rozpoznávam text z dokumentu…',
-    translate: 'Prekladám text…',
-    summarize: 'Tvorím zhrnutie…',
-    extract: 'Extrahujem štruktúrované údaje…'
-  };
-  return texts[currentAction] || 'AI spracováva dokument…';
-}
-
-function getResultLabel() {
-  const labels = {
-    ocr: 'Rozpoznaný text',
-    translate: 'Preklad',
-    summarize: 'Zhrnutie',
-    extract: 'Extrahované údaje'
-  };
-  return labels[currentAction] || 'Výsledok';
 }
 
 async function processFile() {
   if (!currentImageBase64) { showError('Najprv nahraj súbor.'); return; }
   hideMessages();
   loadingWrap.style.display = 'flex';
-  loadingText.textContent = getLoadingText();
+  loadingText.textContent = { ocr: 'Rozpoznávam text…', translate: 'Prekladám text…', summarize: 'Tvorím zhrnutie…', extract: 'Extrahujem údaje…' }[currentAction];
   btnProcess.disabled = true;
   resultCard.style.display = 'none';
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -846,7 +772,7 @@ async function processFile() {
     const text = data.content?.map(b => b.text || '').join('') || '';
     currentResultText = text;
 
-    resultLabel.textContent = getResultLabel();
+    resultLabel.textContent = { ocr: 'Rozpoznaný text', translate: 'Preklad', summarize: 'Zhrnutie', extract: 'Extrahované údaje' }[currentAction];
     resultText.textContent = text;
     resultCard.style.display = 'block';
     resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -872,42 +798,30 @@ function showSuccess(msg) {
 
 function copyResult() {
   if (!currentResultText) return;
-  navigator.clipboard.writeText(currentResultText).then(() => showSuccess('Text bol skopírovaný do schránky!')).catch(() => {
-    const ta = document.createElement('textarea');
-    ta.value = currentResultText;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    showSuccess('Text bol skopírovaný!');
-  });
+  navigator.clipboard.writeText(currentResultText)
+    .then(() => showSuccess('Text bol skopírovaný do schránky!'))
+    .catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = currentResultText;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showSuccess('Text bol skopírovaný!');
+    });
 }
 
 function exportToWord() {
   if (!currentResultText) return;
   const filename = (currentFile?.name.replace(/\.[^.]+$/, '') || 'dokument') + '_text.doc';
-  const html = `
-    <html xmlns:o='urn:schemas-microsoft-com:office:office'
-          xmlns:w='urn:schemas-microsoft-com:office:word'
-          xmlns='http://www.w3.org/TR/REC-html40'>
-    <head>
-      <meta charset='utf-8'>
-      <meta name=ProgId content=Word.Document>
-      <title>${resultLabel.textContent}</title>
-      <style>
-        body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6; margin: 2cm; }
-        h1 { font-size: 14pt; font-weight: bold; margin-bottom: 8pt; color: #1C1A16; }
-        p { margin: 0 0 6pt; }
-        .meta { color: #8A857C; font-size: 9pt; margin-bottom: 16pt; }
-        pre { font-family: Calibri, Arial; white-space: pre-wrap; }
-      </style>
-    </head>
-    <body>
-      <h1>${resultLabel.textContent}</h1>
-      <p class="meta">Súbor: ${currentFile?.name || '–'} · Dátum: ${new Date().toLocaleDateString('sk-SK')}</p>
-      <pre>${currentResultText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
-    </body></html>`;
-
+  const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head><meta charset='utf-8'><title>${resultLabel.textContent}</title>
+<style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.6;margin:2cm}h1{font-size:14pt;font-weight:bold;margin-bottom:8pt}.meta{color:#8A857C;font-size:9pt;margin-bottom:16pt}pre{font-family:Calibri,Arial;white-space:pre-wrap}</style>
+</head><body>
+<h1>${resultLabel.textContent}</h1>
+<p class="meta">Súbor: ${currentFile?.name || '–'} · Dátum: ${new Date().toLocaleDateString('sk-SK')}</p>
+<pre>${currentResultText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+</body></html>`;
   const blob = new Blob(['\ufeff' + html], { type: 'application/msword;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
